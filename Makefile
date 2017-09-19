@@ -35,7 +35,7 @@ debug: $(OBJS_DBG)
 clean:
 	$(RM)  shallot src/*.o
 install:
-	$(CP) shallot $(BINDIR)
+	$(CP) shallot $(BINDIR)/shallot
 uninstall:
 	$(RM) $(BINDIR)/shallot
 
