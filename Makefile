@@ -24,7 +24,8 @@ DEBUG_FLAGS:=$(DEBUG_FLAGS) -g
 OBJS:=src/math.o src/error.o src/linux.o src/print.o src/thread.o src/shallot.o
 OBJS_DBG:=src/math.dbg.o src/error.dbg.o src/linux.dbg.o src/print.dbg.o src/thread.dbg.o src/shallot.dbg.o
 
-BINDIR ?= $(DESTDIR)/bin
+PREFIX ?= /usr/bin
+BINDIR ?= $(DESTDIR)$(PREFIX)
 
 all: $(OBJS)
 	$(CC) $(CFLAGS) -pthread $^ -o shallot $(LIBS)
