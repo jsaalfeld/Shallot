@@ -9,7 +9,7 @@ if [ `uname -s | grep -i bsd` ]; then
 	echo "BSD detected!"
 	>>$cfg_path echo "#define BSD"
 elif [ `uname -s | grep -i linux` ]; then
-	echo "Liunx detected!?"
+	echo "Liunx detected!"
 	>>$cfg_path echo "#define LINUX_PORT"
 elif [ `uname -s | grep -i darwin` ]; then
 	echo "OS X detected!"
