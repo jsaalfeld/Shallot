@@ -2,6 +2,7 @@
 
 #include "math.h"
 #include "defines.h"
+#include <openssl/opensslv.h>
 
 void int_pow(uint32_t base, uint8_t pwr, uint64_t *out) { // integer pow()
   *out = (uint64_t)base;
@@ -63,25 +64,64 @@ uint8_t sane_key(RSA *rsa) { // checks sanity of a RSA key (PKCS#1 v2.1)
          *chk    = BN_CTX_get(ctx), // storage to run checks with
          *gcd    = BN_CTX_get(ctx), // GCD(p - 1, q - 1)
          *lambda = BN_CTX_get(ctx); // LCM(p - 1, q - 1)
-
-  BN_sub(p1, rsa->p, BN_value_one()); // p - 1
-  BN_sub(q1, rsa->q, BN_value_one()); // q - 1
+  #if OPENSSL_VERSION_NUMBER < 0x10100000L
+    BN_sub(p1, rsa->p, BN_value_one()); // p - 1
+    BN_sub(q1, rsa->q, BN_value_one()); // q - 1
+  #else
+    const BIGNUM *p_rsa;
+    const BIGNUM *q_rsa;
+    RSA_get0_factors(rsa, &p_rsa, &q_rsa);
+    BN_sub(p1, p_rsa, BN_value_one()); // p - 1
+    BN_sub(q1, q_rsa, BN_value_one()); // q - 1
+  #endif
   BN_gcd(gcd, p1, q1, ctx);           // gcd(p - 1, q - 1)
   BN_lcm(lambda, p1, q1, gcd, ctx);   // lambda(n)
 
-  BN_gcd(chk, lambda, rsa->e, ctx); // check if e is coprime to lambda(n)
+  #if OPENSSL_VERSION_NUMBER < 0x10100000L
+    BN_gcd(chk, lambda, rsa->e, ctx); // check if e is coprime to lambda(n)
+  #else
+    const BIGNUM *e_rsa;
+    RSA_get0_key(rsa, NULL, &e_rsa, NULL);
+    BN_gcd(chk, lambda, e_rsa, ctx); // check if e is coprime to lambda(n) 
+  #endif
   if(!BN_is_one(chk))
     sane = 0;
 
   // check if public exponent e is less than n - 1
-  BN_sub(chk, rsa->e, rsa->n); // subtract n from e to avoid checking BN_is_zero
+  #if OPENSSL_VERSION_NUMBER < 0x10100000L
+    BN_sub(chk, rsa->e, rsa->n); // subtract n from e to avoid checking BN_is_zero
+  #else
+    const BIGNUM *n_rsa;
+    RSA_get0_key(rsa, &n_rsa, &e_rsa, NULL);
+    BN_sub(chk, &e_rsa, &n_rsa); // subtract n from e to avoid checking BN_is_zero
+  #endif
+  
+  #if OPENSSL_VERSION_NUMBER < 0x10100000L
   if(!chk->neg)
     sane = 0;
+  #else
+  if(!BN_is_negative(chk))
+    sane = 0;
+  #endif
 
-  BN_mod_inverse(rsa->d, rsa->e, lambda, ctx);    // d
-  BN_mod(rsa->dmp1, rsa->d, p1, ctx);             // d mod (p - 1)
-  BN_mod(rsa->dmq1, rsa->d, q1, ctx);             // d mod (q - 1)
-  BN_mod_inverse(rsa->iqmp, rsa->q, rsa->p, ctx); // q ^ -1 mod p
+  #if OPENSSL_VERSION_NUMBER < 0x10100000L
+    BN_mod_inverse(rsa->d, rsa->e, lambda, ctx);    // d
+    BN_mod(rsa->dmp1, rsa->d, p1, ctx);             // d mod (p - 1)
+    BN_mod(rsa->dmq1, rsa->d, q1, ctx);             // d mod (q - 1)
+    BN_mod_inverse(rsa->iqmp, rsa->q, rsa->p, ctx); // q ^ -1 mod p
+  #else
+    const BIGNUM *d_rsa;
+    const BIGNUM *dmp1_rsa;
+    const BIGNUM *dmq1_rsa;
+    const BIGNUM *iqmp_rsa;
+    RSA_get0_key(rsa, NULL, &e_rsa, &d_rsa);
+    RSA_get0_factors(rsa, &p_rsa, &q_rsa);
+    RSA_get0_crt_params(rsa, &dmp1_rsa, &dmq1_rsa, &iqmp_rsa);
+    BN_mod_inverse(&d_rsa, &e_rsa, lambda, ctx);    // d
+    BN_mod(&dmp1_rsa, &d_rsa, p1, ctx);             // d mod (p - 1)
+    BN_mod(&dmq1_rsa, &d_rsa, q1, ctx);             // d mod (q - 1)
+    BN_mod_inverse(&iqmp_rsa, &q_rsa, &p_rsa, ctx); // q ^ -1 mod p
+  #endif
   BN_CTX_end(ctx);
   BN_CTX_free(ctx);
 

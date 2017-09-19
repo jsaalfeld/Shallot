@@ -32,6 +32,12 @@
 #define PRINT_ONION_STR "Found matching domain after %"PRIi64" tries: %s.onion"
 #define PRINT_ONION_MAX 79
 
+// OpenSSL Backwards Comp
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  #define OBJ_get0_data(o) ((o)->data)
+  #define OBJ_length(o) ((o)->length)
+#endif
+
 #ifdef LINUX_PORT
   // Linux constants (lol no API)
   #define CPUINFO_BUF_SIZE 0x400

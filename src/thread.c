@@ -80,9 +80,15 @@ void *worker(void *params) { // life cycle of a cracking pthread
         if(monitor)
           printf("\n"); // keep our printing pretty!
 
-        if(!BN_bin2bn(e_ptr, e_bytes, rsa->e)) // store our e in the actual key
-          error(X_BIGNUM_FAILED);              // and make sure it got there
-
+        #if OPENSSL_VERSION_NUMBER < 0x10100000L
+          if(!BN_bin2bn(e_ptr, e_bytes, rsa->e)) // store our e in the actual key
+            error(X_BIGNUM_FAILED);              // and make sure it got there
+        #else
+          const BIGNUM *e_rsa;
+          RSA_get0_key(rsa, NULL, &e_rsa, NULL);
+          if(!BN_bin2bn(e_ptr, e_bytes, &e_rsa)) // store our e in the actual key
+	    error(X_BIGNUM_FAILED);
+        #endif
         if(!sane_key(rsa))        // check our key
           error(X_YOURE_UNLUCKY); // bad key :(
 
